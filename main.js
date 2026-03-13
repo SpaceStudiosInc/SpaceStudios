@@ -147,9 +147,9 @@ document.addEventListener('mouseleave', () => {
 });
 
 /* ── Touch → camera (drag to look, tap does nothing) ── */
-const TOUCH_SENSITIVITY = 0.0018; // radians per pixel
-const TAP_THRESHOLD_PX  = 8;      // movement ≤ this = tap, not drag
-const TAP_THRESHOLD_MS  = 200;    // time ≤ this = tap
+const TOUCH_SENSITIVITY = 0.003; // ← increased from 0.0018 for snappier response
+const TAP_THRESHOLD_PX  = 8;     // movement ≤ this = tap, not drag
+const TAP_THRESHOLD_MS  = 200;   // time ≤ this = tap
 
 let touchStartX = 0, touchStartY = 0;
 let touchStartTime = 0;
@@ -215,8 +215,17 @@ function projectCard(anchor) {
 /* ── Animate ─────────────────────────────────── */
 (function animate() {
   requestAnimationFrame(animate);
-  currentYaw   += (targetYaw   - currentYaw)   * 0.05;
-  currentPitch += (targetPitch - currentPitch) * 0.05;
+
+  // On touch drag: snap camera directly to target (no lag)
+  // On mouse / flyToCard: smooth lerp as before
+  if (isDragging) {
+    currentYaw   = targetYaw;
+    currentPitch = targetPitch;
+  } else {
+    currentYaw   += (targetYaw   - currentYaw)   * 0.05;
+    currentPitch += (targetPitch - currentPitch) * 0.05;
+  }
+
   euler.set(currentPitch, currentYaw, 0);
   camera.quaternion.setFromEuler(euler);
   renderer.render(scene, camera);
