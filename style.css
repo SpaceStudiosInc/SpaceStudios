@@ -216,3 +216,44 @@ html, body {
   color: rgba(140,140,140,0.95);
   border-color: rgba(255,255,255,0.14);
 }
+
+/* ── Mobile / touch ──────────────────────────── */
+@media (pointer: coarse) {
+  /* Make collapsed pill bigger for finger tapping */
+  .card-collapsed {
+    padding: 8px 16px 8px 12px;
+  }
+  .card-dot {
+    width: 7px;
+    height: 7px;
+  }
+  .card-pill-title {
+    font-size: 0.75rem;
+  }
+
+  /* On touch devices show expanded card on tap (toggled via .tapped class) */
+  .card-expanded {
+    width: 220px;
+  }
+  .card.tapped .card-expanded {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateX(-50%) translateY(-8px) scale(1);
+    border-color: rgba(255,255,255,0.18);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 12px 48px rgba(0,0,0,0.6);
+    background: rgba(28,28,28,0.92);
+  }
+  .card.tapped .card-collapsed {
+    border-color: rgba(255,255,255,0.18);
+    background: rgba(30,30,30,0.6);
+  }
+
+  /* Bigger visit button */
+  .card-bar-link {
+    font-size: 0.7rem;
+    padding: 6px 12px;
+  }
+  .card-bar-title {
+    font-size: 0.85rem;
+  }
+}
