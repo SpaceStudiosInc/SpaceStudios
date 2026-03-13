@@ -69,6 +69,13 @@ const cardObjects = CARDS.map((c, i) => {
       </div>
     </div>
   `;
+  // Whole card is clickable — opens the site
+  el.addEventListener('click', (e) => {
+    // Don't double-fire if they clicked the Visit link directly
+    if (e.target.classList.contains('card-bar-link')) return;
+    window.open(c.url, '_blank', 'noopener');
+  });
+
   layer.appendChild(el);
 
   const item = document.createElement('div');
