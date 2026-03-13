@@ -83,6 +83,24 @@ const cardObjects = CARDS.map((c, i) => {
 
   layer.appendChild(el);
 
+  /* Touch: tap pill → toggle expanded card (drag won't fire this) */
+  el.addEventListener('touchend', e => {
+    if (isDragging) return;                          // was a drag, not a tap
+    const elapsed = Date.now() - touchStartTime;
+    if (elapsed >= TAP_THRESHOLD_MS) return;         // held too long
+
+    // If tapping the Visit link, let it open normally
+    if (e.target.classList.contains('card-bar-link')) return;
+
+    e.preventDefault();                              // stop synthetic mouse click
+    const isOpen = el.classList.contains('tapped');
+
+    // Close all other cards first
+    cardObjects.forEach(o => o.el.classList.remove('tapped'));
+
+    if (!isOpen) el.classList.add('tapped');
+  }, { passive: false });
+
   const item = document.createElement('div');
   item.className = 'menu-item';
   item.textContent = c.title;
@@ -127,6 +145,52 @@ document.addEventListener('mouseleave', () => {
   targetYaw   = currentYaw;
   targetPitch = currentPitch;
 });
+
+/* ── Touch → camera (drag to look, tap does nothing) ── */
+const TOUCH_SENSITIVITY = 0.0018; // radians per pixel
+const TAP_THRESHOLD_PX  = 8;      // movement ≤ this = tap, not drag
+const TAP_THRESHOLD_MS  = 200;    // time ≤ this = tap
+
+let touchStartX = 0, touchStartY = 0;
+let touchStartTime = 0;
+let isDragging = false;
+
+document.addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  touchStartX    = t.clientX;
+  touchStartY    = t.clientY;
+  touchStartTime = Date.now();
+  isDragging     = false;
+}, { passive: true });
+
+document.addEventListener('touchmove', e => {
+  if (e.touches.length !== 1) return;
+  const t = e.touches[0];
+  const dx = t.clientX - touchStartX;
+  const dy = t.clientY - touchStartY;
+
+  // Once movement exceeds tap threshold, treat as drag
+  if (!isDragging && (Math.abs(dx) > TAP_THRESHOLD_PX || Math.abs(dy) > TAP_THRESHOLD_PX)) {
+    isDragging = true;
+  }
+
+  if (isDragging) {
+    // Clamp so dragging can't push past the yaw/pitch limits
+    targetYaw   = Math.max(-MAX_YAW,   Math.min(MAX_YAW,   currentYaw   - dx * TOUCH_SENSITIVITY));
+    targetPitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, currentPitch - dy * TOUCH_SENSITIVITY));
+    // Update start so each frame delta is relative, not cumulative
+    touchStartX = t.clientX;
+    touchStartY = t.clientY;
+  }
+}, { passive: true });
+
+document.addEventListener('touchend', e => {
+  const elapsed = Date.now() - touchStartTime;
+  if (!isDragging && elapsed < TAP_THRESHOLD_MS) {
+    // Pure tap — do nothing to the camera
+  }
+  isDragging = false;
+}, { passive: true });
 
 window.addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
