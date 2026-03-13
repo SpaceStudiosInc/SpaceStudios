@@ -34,13 +34,12 @@ const CARDS = [
     url:   'https://spacestudiosinc.github.io/HAMUSUTA/',
     screenshot: ''
   },
-   {
-    pos3d: [100, 0, -300],
+  {
+    pos3d: [0, 0, -500],
     title: 'All That',
     url:   'https://spacestudiosinc.github.io/ALLTHAT/',
     screenshot: ''
   },
-  
 ];
 
 /* Screenshot service — generates a preview image from any URL */
