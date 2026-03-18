@@ -29,7 +29,7 @@ const CARDS = [
     screenshot: ''
   },
    {
-    pos3d: [0, 50, 500],
+    pos3d: [60, 50, -500],
     title: 'Trigger Fish',
     url:   'https://spacestudiosinc.github.io/Trigger-Fish/',
     screenshot: ''
