@@ -13,6 +13,26 @@ for (let i = 0; i < COUNT * 3; i++) pos[i] = (Math.random() - 0.5) * 4000;
 geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
 scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ color: 0x888888, size: 0.6, sizeAttenuation: true })));
 
+
+// ── Close ring  (z: -250 → -350) ──────────────────────
+//{ pos3d: [-180,    0, -300] }   // left
+//{ pos3d: [   0,   90, -280] }   // top-center
+//{ pos3d: [ 180,    0, -300] }   // right
+//{ pos3d: [   0,  -90, -280] }   // bottom-center
+
+// ── Mid ring  (z: -450 → -550) ────────────────────────
+//{ pos3d: [-140,   60, -500] }   // upper-left
+//{ pos3d: [ 140,   60, -500] }   // upper-right
+//{ pos3d: [   0,    0, -480] }   // dead center
+//{ pos3d: [-140,  -60, -500] }   // lower-left
+//{ pos3d: [ 140,  -60, -500] }   // lower-right
+
+// ── Deep ring  (z: -650 → -750) ───────────────────────
+//{ pos3d: [ -90,   45, -700] }
+//{ pos3d: [   0,    0, -700] }
+//{ pos3d: [  90,   45, -700] }
+
+
 /* ─────────────────────────────────────────────
    CARDS — edit these to add your websites
    url:        the website URL to preview
@@ -29,7 +49,7 @@ const CARDS = [
     screenshot: ''
   },
    {
-    pos3d: [60, 50, -500],
+    pos3d: [ 140,   60, -500],
     title: 'Trigger Fish',
     url:   'https://spacestudiosinc.github.io/Trigger-Fish/',
     screenshot: ''
