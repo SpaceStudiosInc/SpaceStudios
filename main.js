@@ -30,7 +30,7 @@ const CARDS = [
   },
    {
     pos3d: [0, 50, 500],
-    title: 'Alpha Airsoft',
+    title: 'Trigger Fish',
     url:   'https://spacestudiosinc.github.io/Trigger-Fish/',
     screenshot: ''
   },
