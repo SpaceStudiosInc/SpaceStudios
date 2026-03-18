@@ -28,6 +28,12 @@ const CARDS = [
     url:   'https://spacestudiosinc.github.io/Alpha_Airsoft/',
     screenshot: ''
   },
+   {
+    pos3d: [0, 50, 500],
+    title: 'Alpha Airsoft',
+    url:   'https://spacestudiosinc.github.io/Trigger-Fish/',
+    screenshot: ''
+  },
   {
     pos3d: [160, 0, -300],
     title: 'Hamusuta',
