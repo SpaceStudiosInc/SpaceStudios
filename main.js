@@ -1,3 +1,47 @@
+/* ── Background music — Web Audio API for gapless, seamless looping ── */
+let audioCtx   = null;
+let bgmGain    = null;
+let bgmBuffer  = null;
+let bgmSource  = null;
+let bgmStarted = false;
+
+function playMusic() {
+  if (!audioCtx || !bgmBuffer || bgmStarted) return;
+  bgmSource = audioCtx.createBufferSource();
+  bgmSource.buffer = bgmBuffer;
+  bgmSource.loop = true; // sample-accurate loop, no gap at the seam
+  bgmSource.connect(bgmGain);
+  bgmSource.start(0);
+  bgmStarted = true;
+}
+
+async function initMusic() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  bgmGain = audioCtx.createGain();
+  bgmGain.gain.value = 0.4;
+  bgmGain.connect(audioCtx.destination);
+
+  const res = await fetch('BGMusic.wav');
+  const arrayBuffer = await res.arrayBuffer();
+  bgmBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+  if (audioCtx.state === 'running') playMusic();
+}
+initMusic().catch(() => {
+  // Decoding/fetch failed — nothing to do, music just won't play
+});
+
+function unlockMusic() {
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  playMusic();
+  window.removeEventListener('pointerdown', unlockMusic);
+  window.removeEventListener('keydown', unlockMusic);
+  window.removeEventListener('touchstart', unlockMusic);
+}
+window.addEventListener('pointerdown', unlockMusic);
+window.addEventListener('keydown', unlockMusic);
+window.addEventListener('touchstart', unlockMusic);
+
 /* ── Scene ───────────────────────────────────── */
 const scene    = new THREE.Scene();
 const camera   = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 5000);
@@ -13,150 +57,189 @@ for (let i = 0; i < COUNT * 3; i++) pos[i] = (Math.random() - 0.5) * 4000;
 geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
 scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ color: 0x888888, size: 0.6, sizeAttenuation: true })));
 
+/* ── Moon — far background ──────────────────── */
+const moonLoader = new THREE.TextureLoader();
+let moonMesh = null;
+moonLoader.load('moon.png', (moonTex) => {
+  moonTex.colorSpace = THREE.SRGBColorSpace ?? moonTex.colorSpace;
+  const moonSize = 1100;
+  const moonMat = new THREE.SpriteMaterial({
+    map: moonTex,
+    transparent: true,
+    depthWrite: false
+  });
+  moonMesh = new THREE.Sprite(moonMat);
+  moonMesh.scale.set(moonSize, moonSize, 1);
+  moonMesh.position.set(-2000, 500, -3000);
+  moonMesh.renderOrder = 0; // draw first, farthest back
+  scene.add(moonMesh);
+});
 
-// ── Close ring  (z: -250 → -350) ──────────────────────
-//{ pos3d: [-180,    0, -300] }   // left
-//{ pos3d: [   0,   90, -280] }   // top-center
-//{ pos3d: [ 180,    0, -300] }   // right
-//{ pos3d: [   0,  -90, -280] }   // bottom-center
-
-// ── Mid ring  (z: -450 → -550) ────────────────────────
-//{ pos3d: [-140,   60, -500] }   // upper-left
-//{ pos3d: [ 140,   60, -500] }   // upper-right
-//{ pos3d: [   0,    0, -480] }   // dead center
-//{ pos3d: [-140,  -60, -500] }   // lower-left
-//{ pos3d: [ 140,  -60, -500] }   // lower-right
-
-// ── Deep ring  (z: -650 → -750) ───────────────────────
-//{ pos3d: [ -90,   45, -700] }
-//{ pos3d: [   0,    0, -700] }
-//{ pos3d: [  90,   45, -700] }
-
-
-/* ─────────────────────────────────────────────
-   CARDS — edit these to add your websites
-   url:        the website URL to preview
-   screenshot: direct image URL  OR  leave as ''
-               to auto-generate from the URL
-   title:      shown bottom-left of card
-   pos3d:      [x, y, z] position in space
-────────────────────────────────────────────── */
-const CARDS = [
-  {
-    pos3d: [-160, 0, -300],
-    title: 'Alpha Airsoft',
-    url:   'https://spacestudiosinc.github.io/Alpha_Airsoft/',
-    screenshot: ''
-  },
-   {
-    pos3d: [140, 60, -500],
-    title: 'Trigger Fish',
-    url:   'https://spacestudiosinc.github.io/Trigger-Fish/',
-    screenshot: ''
-  },
-  {
-    pos3d: [160, 0, -300],
-    title: 'Hamusuta',
-    url:   'https://spacestudiosinc.github.io/HAMUSUTA/',
-    screenshot: ''
-  },
-  {
-    pos3d: [0, 50, -500],
-    title: 'All That',
-    url:   'https://spacestudiosinc.github.io/ALLTHAT/',
-    screenshot: ''
-  },
+/* ── Title text — billboards to camera, click to change color ── */
+let titleSprite  = null;
+let titleCtx     = null;
+let titleTexture = null;
+const TITLE_W = 1024, TITLE_H = 940;
+const TITLE_COLORS = [
+  'rgba(255,255,255,0.95)', // white (default)
+  'rgba(255,70,70,0.95)',   // red
+  'rgba(80,170,255,0.95)',  // blue
+  'rgba(255,210,60,0.95)',  // gold
 ];
+let titleColorIndex = 0;
 
-/* Screenshot service — generates a preview image from any URL */
-function screenshotUrl(siteUrl) {
-  const encoded = encodeURIComponent(siteUrl);
-  // Uses WordPress mshots — free, no key needed
-  return `https://s.wordpress.com/mshots/v1/${encoded}?w=520&h=310`;
-}
+function drawTitleText(color) {
+  const lines = ['INVADE', 'THE', 'MOON'];
+  titleCtx.clearRect(0, 0, TITLE_W, TITLE_H);
+  titleCtx.textAlign = 'center';
+  titleCtx.textBaseline = 'middle';
 
-/* ── Build cards + menu ──────────────────────── */
-const layer     = document.getElementById('cards-layer');
-const menu      = document.getElementById('menu');
-const hamburger = document.getElementById('hamburger');
+  const fontSize = 150;
+  const lineHeight = fontSize * 1.05;
+  const titleBlockHeight = lineHeight * lines.length;
+  const startY = 40 + titleBlockHeight / 2;
 
-const cardObjects = CARDS.map((c, i) => {
-  const imgSrc = c.screenshot || screenshotUrl(c.url);
+  titleCtx.font = `${fontSize}px "M23", sans-serif`;
+  lines.forEach((line, i) => {
+    const y = startY - titleBlockHeight / 2 + lineHeight / 2 + i * lineHeight;
 
-  const el = document.createElement('div');
-  el.className = 'card';
-  el.innerHTML = `
-    <div class="card-collapsed">
-      <span class="card-dot"></span>
-      <span class="card-pill-title">${c.title}</span>
-    </div>
-    <div class="card-expanded">
-      <div class="card-screenshot">
-        <img src="${imgSrc}" alt="${c.title}" loading="lazy"/>
-      </div>
-      <div class="card-bar">
-        <div class="card-bar-title">${c.title}</div>
-        <a class="card-bar-link" href="${c.url}" target="_blank" rel="noopener">Visit ↗</a>
-      </div>
-    </div>
-  `;
-  // Whole card is clickable — opens the site
-  el.addEventListener('click', (e) => {
-    // Don't double-fire if they clicked the Visit link directly
-    if (e.target.classList.contains('card-bar-link')) return;
-    window.open(c.url, '_blank', 'noopener');
+    // soft glow
+    titleCtx.shadowColor = 'rgba(255,255,255,0.35)';
+    titleCtx.shadowBlur = 30;
+    titleCtx.fillStyle = color;
+    titleCtx.fillText(line, TITLE_W / 2, y);
+
+    // crisp pass on top
+    titleCtx.shadowBlur = 0;
+    titleCtx.fillStyle = color;
+    titleCtx.fillText(line, TITLE_W / 2, y);
   });
 
-  layer.appendChild(el);
+  // "COMING SOON" below the title
+  const subFontSize = 56;
+  const subY = startY + titleBlockHeight / 2 + 90;
+  titleCtx.font = `${subFontSize}px "M23", sans-serif`;
 
-  /* Touch: tap pill → toggle expanded card (drag won't fire this) */
-  el.addEventListener('touchend', e => {
-    if (isDragging) return;                          // was a drag, not a tap
-    const elapsed = Date.now() - touchStartTime;
-    if (elapsed >= TAP_THRESHOLD_MS) return;         // held too long
+  titleCtx.shadowColor = 'rgba(255,255,255,0.25)';
+  titleCtx.shadowBlur = 18;
+  titleCtx.fillStyle = 'rgba(200,200,200,0.85)';
+  titleCtx.fillText('COMING SOON', TITLE_W / 2, subY);
 
-    // If tapping the Visit link, let it open normally
-    if (e.target.classList.contains('card-bar-link')) return;
+  titleCtx.shadowBlur = 0;
+  titleCtx.fillStyle = 'rgba(220,220,220,0.9)';
+  titleCtx.fillText('COMING SOON', TITLE_W / 2, subY);
 
-    e.preventDefault();                              // stop synthetic mouse click
-    const isOpen = el.classList.contains('tapped');
-
-    // Close all other cards first
-    cardObjects.forEach(o => o.el.classList.remove('tapped'));
-
-    if (!isOpen) el.classList.add('tapped');
-  }, { passive: false });
-
-  const item = document.createElement('div');
-  item.className = 'menu-item';
-  item.textContent = c.title;
-  item.addEventListener('click', () => { flyToCard(i); closeMenu(); });
-  menu.appendChild(item);
-
-  return { el, anchor: new THREE.Vector3(...c.pos3d) };
-});
-
-/* ── Hamburger ───────────────────────────────── */
-function closeMenu() {
-  hamburger.classList.remove('open');
-  menu.classList.remove('open');
-}
-hamburger.addEventListener('click', e => {
-  e.stopPropagation();
-  hamburger.classList.toggle('open');
-  menu.classList.toggle('open');
-});
-document.addEventListener('click', () => closeMenu());
-menu.addEventListener('click', e => e.stopPropagation());
-
-/* ── Fly to card ─────────────────────────────── */
-function flyToCard(i) {
-  const a = cardObjects[i].anchor;
-  targetYaw   = -Math.atan2(a.x, -a.z);
-  targetPitch = -Math.atan2(a.y, Math.sqrt(a.x * a.x + a.z * a.z));
+  titleTexture.needsUpdate = true;
 }
 
-/* ── Mouse → camera (free, position-based, limited) ── */
+function makeTitleSprite() {
+  const canvas = document.createElement('canvas');
+  canvas.width = TITLE_W;
+  canvas.height = TITLE_H;
+  titleCtx = canvas.getContext('2d');
+
+  titleTexture = new THREE.CanvasTexture(canvas);
+  titleTexture.minFilter = THREE.LinearFilter;
+
+  drawTitleText(TITLE_COLORS[titleColorIndex]);
+
+  const material = new THREE.SpriteMaterial({ map: titleTexture, transparent: true, depthWrite: false });
+  titleSprite = new THREE.Sprite(material);
+
+  const aspect = TITLE_W / TITLE_H;
+  const spriteHeight = 500;
+  titleSprite.scale.set(spriteHeight * aspect, spriteHeight, 1);
+  titleSprite.position.set(0, 10, -400);
+  titleSprite.renderOrder = 2; // draw last, always on top of ship and moon
+
+  scene.add(titleSprite);
+}
+
+if (document.fonts && document.fonts.load) {
+  const font = new FontFace('M23', 'url(m23.TTF)');
+  font.load().then((loaded) => {
+    document.fonts.add(loaded);
+    makeTitleSprite();
+  }).catch(() => {
+    // Fall back to a system font if the custom font fails to load
+    makeTitleSprite();
+  });
+} else {
+  makeTitleSprite();
+}
+
+/* ── Ship flyby — drifts across the background every ~1 min ── */
+const shipLoader = new THREE.TextureLoader();
+let shipSprite   = null;
+let shipActive   = false;
+let shipStart    = new THREE.Vector3();
+let shipEnd      = new THREE.Vector3();
+let shipStartTime = 0;
+
+const SHIP_FLIGHT_DURATION = 20000;  // ms, time to cross the screen
+const SHIP_INTERVAL_MIN    = 45000;  // ms, shortest gap between flybys
+const SHIP_INTERVAL_MAX    = 75000;  // ms, longest gap between flybys
+let nextShipTime = performance.now() + 4000; // first flyby ~4s after load
+
+shipLoader.load('Ship1.png', (shipTex) => {
+  shipTex.colorSpace = THREE.SRGBColorSpace ?? shipTex.colorSpace;
+  shipTex.magFilter = THREE.NearestFilter;
+  shipTex.minFilter = THREE.NearestFilter;
+
+  const shipMat = new THREE.SpriteMaterial({
+    map: shipTex,
+    transparent: true,
+    depthWrite: false
+  });
+  shipSprite = new THREE.Sprite(shipMat);
+  shipSprite.scale.set(80, 80, 1);
+  shipSprite.renderOrder = 1; // draw after the moon, before the title
+  shipSprite.visible = false;
+  scene.add(shipSprite);
+});
+
+function launchShip() {
+  if (!shipSprite) return;
+
+  const fromLeft = Math.random() < 0.5;
+  const y  = (Math.random() - 0.5) * 500 + 150;
+  const z  = -1600 - Math.random() * 900;
+  const yDrift = (Math.random() - 0.5) * 250;
+
+  shipStart.set(fromLeft ? -2400 : 2400, y, z);
+  shipEnd.set(fromLeft ? 2400 : -2400, y + yDrift, z);
+
+  shipSprite.position.copy(shipStart);
+  // Point the nose along the direction of travel (art points "up" by default,
+  // plus 180° since the art's "front" faces the opposite way)
+  shipSprite.material.rotation =
+    Math.atan2(shipEnd.y - shipStart.y, shipEnd.x - shipStart.x) + Math.PI / 2 + Math.PI;
+
+  shipSprite.visible = true;
+  shipActive = true;
+  shipStartTime = performance.now();
+}
+
+function updateShip(now) {
+  if (!shipSprite) return;
+
+  if (!shipActive && now >= nextShipTime) {
+    launchShip();
+  }
+
+  if (shipActive) {
+    const t = Math.min(1, (now - shipStartTime) / SHIP_FLIGHT_DURATION);
+    shipSprite.position.lerpVectors(shipStart, shipEnd, t);
+
+    if (t >= 1) {
+      shipActive = false;
+      shipSprite.visible = false;
+      nextShipTime = now + SHIP_INTERVAL_MIN + Math.random() * (SHIP_INTERVAL_MAX - SHIP_INTERVAL_MIN);
+    }
+  }
+}
+
+
 const MAX_YAW   = Math.PI * 0.30;
 const MAX_PITCH = Math.PI * 0.22;
 
@@ -172,10 +255,10 @@ document.addEventListener('mouseleave', () => {
   targetPitch = currentPitch;
 });
 
-/* ── Touch → camera (drag to look, tap does nothing) ── */
-const TOUCH_SENSITIVITY = 0.003; // ← increased from 0.0018 for snappier response
-const TAP_THRESHOLD_PX  = 8;     // movement ≤ this = tap, not drag
-const TAP_THRESHOLD_MS  = 200;   // time ≤ this = tap
+/* ── Touch → camera (drag to look) ───────────── */
+const TOUCH_SENSITIVITY = 0.003;
+const TAP_THRESHOLD_PX  = 8;
+const TAP_THRESHOLD_MS  = 200;
 
 let touchStartX = 0, touchStartY = 0;
 let touchStartTime = 0;
@@ -195,26 +278,19 @@ document.addEventListener('touchmove', e => {
   const dx = t.clientX - touchStartX;
   const dy = t.clientY - touchStartY;
 
-  // Once movement exceeds tap threshold, treat as drag
   if (!isDragging && (Math.abs(dx) > TAP_THRESHOLD_PX || Math.abs(dy) > TAP_THRESHOLD_PX)) {
     isDragging = true;
   }
 
   if (isDragging) {
-    // Clamp so dragging can't push past the yaw/pitch limits
     targetYaw   = Math.max(-MAX_YAW,   Math.min(MAX_YAW,   currentYaw   - dx * TOUCH_SENSITIVITY));
     targetPitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, currentPitch - dy * TOUCH_SENSITIVITY));
-    // Update start so each frame delta is relative, not cumulative
     touchStartX = t.clientX;
     touchStartY = t.clientY;
   }
 }, { passive: true });
 
-document.addEventListener('touchend', e => {
-  const elapsed = Date.now() - touchStartTime;
-  if (!isDragging && elapsed < TAP_THRESHOLD_MS) {
-    // Pure tap — do nothing to the camera
-  }
+document.addEventListener('touchend', () => {
   isDragging = false;
 }, { passive: true });
 
@@ -224,26 +300,28 @@ window.addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight);
 });
 
-/* ── Project 3D → 2D ─────────────────────────── */
-const euler = new THREE.Euler(0, 0, 0, 'YXZ');
-const screenPos = new THREE.Vector3();
+/* ── Click the title to cycle its color ──────── */
+const raycaster = new THREE.Raycaster();
+const clickNDC = new THREE.Vector2();
 
-function projectCard(anchor) {
-  screenPos.copy(anchor);
-  screenPos.project(camera);
-  return {
-    x: ( screenPos.x * 0.5 + 0.5) * innerWidth,
-    y: (-screenPos.y * 0.5 + 0.5) * innerHeight,
-    behind: screenPos.z > 1
-  };
-}
+window.addEventListener('click', (e) => {
+  if (!titleSprite) return;
+  clickNDC.x = (e.clientX / innerWidth) * 2 - 1;
+  clickNDC.y = -(e.clientY / innerHeight) * 2 + 1;
+  raycaster.setFromCamera(clickNDC, camera);
+  const hits = raycaster.intersectObject(titleSprite);
+  if (hits.length > 0) {
+    titleColorIndex = (titleColorIndex + 1) % TITLE_COLORS.length;
+    drawTitleText(TITLE_COLORS[titleColorIndex]);
+  }
+});
 
 /* ── Animate ─────────────────────────────────── */
+const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+
 (function animate() {
   requestAnimationFrame(animate);
 
-  // On touch drag: snap camera directly to target (no lag)
-  // On mouse / flyToCard: smooth lerp as before
   if (isDragging) {
     currentYaw   = targetYaw;
     currentPitch = targetPitch;
@@ -256,16 +334,5 @@ function projectCard(anchor) {
   camera.quaternion.setFromEuler(euler);
   renderer.render(scene, camera);
 
-  cardObjects.forEach(({ el, anchor }) => {
-    const { x, y, behind } = projectCard(anchor);
-    if (behind) {
-      el.style.opacity = '0';
-      el.style.pointerEvents = 'none';
-    } else {
-      el.style.left = x + 'px';
-      el.style.top  = y + 'px';
-      el.style.opacity = '1';
-      el.style.pointerEvents = 'all';
-    }
-  });
+  updateShip(performance.now());
 })();
