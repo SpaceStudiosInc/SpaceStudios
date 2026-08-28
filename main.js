@@ -21,7 +21,7 @@ async function initMusic() {
   bgmGain.gain.value = 0.4;
   bgmGain.connect(audioCtx.destination);
 
-  const res = await fetch('BGMusic.mp3');
+  const res = await fetch('');
   const arrayBuffer = await res.arrayBuffer();
   bgmBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
