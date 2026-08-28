@@ -21,11 +21,11 @@ async function initMusic() {
   bgmGain.gain.value = 0.4;
   bgmGain.connect(audioCtx.destination);
 
-  const res = await fetch('BGMusic.wav');
+  const res = await fetch('BGMusic.mp3');
   const arrayBuffer = await res.arrayBuffer();
   bgmBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
-  if (audioCtx.state === 'running') playMusic();
+  if (audioCtx.state === 'running') play();
 }
 initMusic().catch(() => {});
 
