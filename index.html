@@ -1,19 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Space Studios</title>
-  <link rel="stylesheet" href="style.css"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>SPACE STUDIOS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <canvas id="canvas"></canvas>
 
-  <nav id="nav">
-    <div id="nav-title">Space Studios By Nasseh</div>
-  </nav>
+  <canvas id="starfield"></canvas>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <main id="arcade">
+    <header>
+      <h1>SPACE STUDIOS</h1>
+      <p class="tagline">Arcade &middot; by Nasseh</p>
+    </header>
+
+    <div class="games">
+
+      <button class="game-card" data-src="https://spacestudiosinc.github.io/InvadeTheMoonTheGame/" data-title="Invade the Moon">
+        <div class="game-info">
+          <h2>Invade the Moon</h2>
+          <p>Roguelite &middot; WASD + mouse</p>
+        </div>
+        <span class="play">PLAY &rarr;</span>
+      </button>
+
+      <button class="game-card" data-src="https://spacestudiosinc.github.io/AlphaShooter/" data-title="Alpha Shooter">
+        <div class="game-info">
+          <h2>Alpha Shooter</h2>
+          <p>Wave defense &middot; in development</p>
+        </div>
+        <span class="play wip">WIP &rarr;</span>
+      </button>
+
+    </div>
+
+    <footer>Click a game to launch &middot; Hosted on GitHub Pages</footer>
+  </main>
+
+  <!-- ── In-page game viewer ── -->
+  <div id="viewer">
+    <div id="viewerBar">
+      <button id="viewerBack">&larr; BACK</button>
+      <span id="viewerTitle"></span>
+    </div>
+    <iframe id="viewerFrame" title="Game viewer" allow="autoplay; gamepad; fullscreen"></iframe>
+  </div>
+
   <script src="main.js"></script>
 </body>
 </html>
