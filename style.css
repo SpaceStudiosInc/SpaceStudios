@@ -17,6 +17,8 @@ html, body {
   background: #000;
   color: #fff;
   font-family: 'Pixelify Sans', monospace;
+  overscroll-behavior: none; /* stop iOS/Android rubber-band scroll & pull-to-refresh */
+  touch-action: manipulation; /* kill double-tap-to-zoom delay on mobile */
 }
 
 /* ── Starfield — sits behind everything, zooms forever ── */
@@ -41,8 +43,35 @@ body.viewing #starfield {
   align-items: center;
   justify-content: center;
   gap: 40px;
-  padding: 32px 16px;
+  padding: max(32px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+           max(32px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
   text-align: center;
+}
+
+/* ── Short / landscape phones — tighten vertical rhythm ── */
+@media (max-height: 480px) {
+  #arcade {
+    gap: 20px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+  header {
+    margin: 0;
+  }
+}
+
+/* ── Very narrow phones — keep card text from crowding the PLAY label ── */
+@media (max-width: 360px) {
+  .game-card {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+  .game-info h2 {
+    font-size: 14px;
+  }
+  .play {
+    font-size: 12px;
+  }
 }
 
 /* ── Header ── */
@@ -143,6 +172,7 @@ footer {
   z-index: 100;
   background: #000;
   flex-direction: column;
+  height: 100dvh; /* avoids iOS/Android address-bar resize jumps */
 }
 
 body.viewing #viewer {
@@ -157,7 +187,8 @@ body.viewing #arcade {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 10px 16px;
+  padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+           10px max(16px, env(safe-area-inset-left));
   border-bottom: 2px solid #fff;
   flex-shrink: 0;
 }
